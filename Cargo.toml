@@ -1,0 +1,16 @@
+[package]
+name = "subscription-proxy-vsock"
+version = "0.1.0"
+authors = ["Дамјан Георгиевски <gdamjan@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-h1 = "1.1.0"
+http-types = "1.1.1"
+libc = "0.2"
+
+[dependencies.async-std]
+version = "1.5.0"
+features = ["attributes"]
