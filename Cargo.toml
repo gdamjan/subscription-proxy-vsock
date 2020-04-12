@@ -10,6 +10,7 @@ edition = "2018"
 async-h1 = "1.1.0"
 http-types = "1.1.1"
 libc = "0.2"
+lazy_static = "1.4.0"
 
 [dependencies.async-std]
 version = "1.5.0"
