@@ -28,10 +28,10 @@ import asyncio
 import socket
 
 DUMMY_RESPONSE = '''\
-HTTP/1.1 200 OK
-date: Sat, 11 Apr 2020 23:43:49 GMT
-content-type: text/plain
-
+HTTP/1.1 200 OK\r
+date: Sat, 11 Apr 2020 23:43:49 GMT\r
+content-type: text/plain\r
+\r
 ok
 '''
 FIXED_PORT_UNTIL_REGISTRATION_WORKS = 54321
@@ -69,7 +69,8 @@ async def keepalive(reader, writer):
 async def handle_http_request(reader, writer):
     addr = writer.get_extra_info('peername')
     print(f"Connected from {addr}")
-    _request = await reader.readuntil(separator=b'\r\n\r\n')
+    request = await reader.readuntil(separator=b'\r\n\r\n')
+    print(request)
     writer.write(DUMMY_RESPONSE.encode())
     await writer.drain()
     writer.close()
