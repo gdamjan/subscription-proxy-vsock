@@ -69,7 +69,7 @@ async def keepalive(reader, writer):
 async def handle_http_request(reader, writer):
     addr = writer.get_extra_info('peername')
     print(f"Connected from {addr}")
-    _request = await reader.readuntil(separator=b'\n\n')
+    _request = await reader.readuntil(separator=b'\r\n\r\n')
     writer.write(DUMMY_RESPONSE.encode())
     await writer.drain()
     writer.close()
