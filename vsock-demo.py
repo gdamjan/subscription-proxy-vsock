@@ -1,10 +1,31 @@
-# this must be run inside a cloud-hypervisor VM
-# started with --vsock cid=10,sock=/tmp/cid10.sock
-import socket
-import threading
+#! /usr/bin/python3
+'''
+Get and unpack the alpinelinux minirootfs, add python3, and add this script
+Create an initramfs from it, then run it inside of cloud-hypervisor:
 
-PROXY_WELL_KNOWN_ADDR = 2      ## the host in VSOCK addressing
-PROXY_WELL_KNOWN_PORT = 12345
+$ cloud-hypervisor \
+    --cmdline "console=hvc0 quiet panic=-1" \
+    --kernel ./bzImage \
+    --initramfs ./initramfs.img.lz4 \
+    --vsock cid=10,sock=/tmp/cid10.sock
+
+
+To simulate the proxy, you can do these:
+
+On the host run this:
+$ socat - UNIX-LISTEN:/tmp/cid10.sock_12345
+REGISTER 54321
+ping
+pong
+
+And this:
+$ socat - UNIX-CONNECT:/tmp/cid10.sock
+CONNECT 54321
+…
+'''
+
+import asyncio
+import socket
 
 DUMMY_RESPONSE = '''\
 HTTP/1.1 200 OK
@@ -13,43 +34,57 @@ content-type: text/plain
 
 ok
 '''
+FIXED_PORT_UNTIL_REGISTRATION_WORKS = 54321
 
-def register_with_proxy(server_port):
-    sock = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM, 0)
-    sock.connect((PROXY_WELL_KNOWN_ADDR, PROXY_WELL_KNOWN_PORT))
-    register_cmd = f"REGISTER {server_port}\n"
-    sock.sendall(register_cmd.encode())
-    print(f"registered {server_port}")
-    threading.Thread(target=handle_keepalive, args=(sock,)).start()
+PROXY_WELL_KNOWN_ADDR = 2      ## the host in VSOCK addressing
+PROXY_WELL_KNOWN_PORT = 12345
 
-def handle_keepalive(sock):
+async def register_with_proxy(server):
+    try:
+        sock = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM, 0)
+        sock.connect((PROXY_WELL_KNOWN_ADDR, PROXY_WELL_KNOWN_PORT))
+        reader, writer = await asyncio.open_connection(sock=sock)
+
+        for s in server.sockets:
+            port = s.getsockname()[1]
+            register_cmd = f"REGISTER {port}\n"
+            writer.write(register_cmd.encode())
+        await writer.drain()
+        await keepalive(reader, writer)
+    finally:
+        server.close()
+
+async def keepalive(reader, writer):
     while True:
-        data = sock.recv(4)
-        if data == b'ping'
-            sock.sendall(b'pong')
+        data = await reader.readuntil(separator=b'\n')
+        if data == b'ping\n':
+            writer.write(b'pong\n')
+            await writer.drain()
         if data == b'':
             break
-    sock.close()
-    # and die?
+    writer.close()
+    await writer.wait_closed()
 
-def dummy_server():
-    listen_sock = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM, 0)
-    ## listen_sock.bind((-1, -1))
-    # FIXME: the port should be dynamically bound like above, but fix it until subscription works
-    listen_sock.bind((-1, 54321))
-    listen_sock.listen()
-    cid, port = listen_sock.getsockname()
-    print(f"Listening on AF_VSOCK {cid}:{port}")
-    register_with_proxy(port)
-    while True:
-        sock, addr = listen_sock.accept()
-        threading.Thread(target=dummy_http_response, args=(sock, addr)).start()
 
-def dummy_http_response(sock, addr):
-    sock.recv(1000)  # ignore request
-    sock.sendall(DUMMY_RESPONSE.encode())
-    sock.close()
+async def handle_http_request(reader, writer):
+    addr = writer.get_extra_info('peername')
+    print(f"Connected from {addr}")
+    _request = await reader.readuntil(separator=b'\n\n')
+    writer.write(DUMMY_RESPONSE.encode())
+    await writer.drain()
+    writer.close()
+
+async def http_server():
+    sock = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM, 0)
+    #sock.bind((-1, -1))
+    sock.bind((-1, FIXED_PORT_UNTIL_REGISTRATION_WORKS))
+
+    srv = await asyncio.start_server(handle_http_request, sock=sock, start_serving=False)
+    async with srv:
+        print(srv)
+        asyncio.create_task(register_with_proxy(srv))
+        await srv.serve_forever()
 
 
 if __name__ == '__main__':
-    dummy_server()
+    asyncio.run(http_server())
