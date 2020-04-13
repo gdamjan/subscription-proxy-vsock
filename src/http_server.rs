@@ -47,14 +47,12 @@ async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Resul
 
         // poor mans skip_while
         let mut connect_response = Vec::<u8>::new();
-        loop {
+        while {
             let mut single_byte = vec![0; 1];
             vsock_stream.read_exact(&mut single_byte).await?;
             connect_response.push(single_byte[0]);
-            if single_byte[0] == b'\n' {
-                break;
-            }
-        }
+            single_byte != [b'\n']
+        } {}
         print!("{}", String::from_utf8_lossy(&connect_response));
 
         let res = async_h1::client::connect(vsock_stream, req).await?;
