@@ -31,6 +31,7 @@ DUMMY_RESPONSE = '''\
 HTTP/1.1 200 OK\r
 date: Sat, 11 Apr 2020 23:43:49 GMT\r
 content-type: text/plain\r
+content-length: 3\r
 \r
 ok
 '''
