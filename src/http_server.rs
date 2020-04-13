@@ -24,7 +24,7 @@ pub async fn http_listener(addr: &str, port: u16) -> std::io::Result<()> {
 }
 
 async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Result<()> {
-    println!("starting new connection from {}", stream.peer_addr()?);
+    println!("Got request from {}", stream.peer_addr()?);
     async_h1::accept(addr, stream.clone(), |req| async move {
         /*
             get subscriber,
@@ -40,14 +40,24 @@ async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Resul
             return no_subscribers();
         }
 
-        let connect_cmd = format!("CONNECT {}\n", subscriber_port);
         let mut vsock_stream = UnixStream::connect(subscriber_addr).await?;
+        let connect_cmd = format!("CONNECT {}\n", subscriber_port);
+        print!("{}", connect_cmd);
         vsock_stream.write_all(connect_cmd.as_bytes()).await?;
-        let mut ignored = String::new();
-        vsock_stream.read_to_string(&mut ignored).await?;
+
+        // poor mans skip_while
+        let mut connect_response = Vec::<u8>::new();
+        loop {
+            let mut single_byte = vec![0; 1];
+            vsock_stream.read_exact(&mut single_byte).await?;
+            connect_response.push(single_byte[0]);
+            if single_byte[0] == b'\n' {
+                break;
+            }
+        }
+        print!("{}", String::from_utf8_lossy(&connect_response));
 
         let res = async_h1::client::connect(vsock_stream, req).await?;
-
         Ok(res)
     })
     .await?;
