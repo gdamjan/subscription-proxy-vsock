@@ -1,5 +1,5 @@
 #! /usr/bin/python3
-'''
+"""
 Get and unpack the alpinelinux minirootfs, add python3, and add this script
 Create an initramfs from it, then run it inside of cloud-hypervisor:
 
@@ -22,22 +22,23 @@ And this:
 $ socat - UNIX-CONNECT:/tmp/cid10.sock
 CONNECT 54321
 …
-'''
+"""
 
 import asyncio
 import socket
 
-DUMMY_RESPONSE = '''\
+DUMMY_RESPONSE = """\
 HTTP/1.1 200 OK\r
 date: Sat, 11 Apr 2020 23:43:49 GMT\r
 content-type: text/plain\r
 content-length: 3\r
 \r
 ok
-'''
+"""
 
-PROXY_WELL_KNOWN_ADDR = 2      ## the host in VSOCK addressing
+PROXY_WELL_KNOWN_ADDR = 2  ## the host in VSOCK addressing
 PROXY_WELL_KNOWN_PORT = 12345
+
 
 async def register_with_proxy(server):
     try:
@@ -56,30 +57,34 @@ async def register_with_proxy(server):
         await writer.wait_closed()
         server.close()
 
+
 async def keepalive(reader, writer):
     while True:
-        data = await reader.readuntil(separator=b'\n')
-        if data == b'ping\n':
-            writer.write(b'pong\n')
+        data = await reader.readuntil(separator=b"\n")
+        if data == b"ping\n":
+            writer.write(b"pong\n")
             await writer.drain()
-        if data == b'':
+        if data == b"":
             break
 
 
 async def handle_http_request(reader, writer):
-    addr = writer.get_extra_info('peername')
+    addr = writer.get_extra_info("peername")
     print(f"Connected from {addr}")
-    request = await reader.readuntil(separator=b'\r\n\r\n')
+    request = await reader.readuntil(separator=b"\r\n\r\n")
     print(request)
     writer.write(DUMMY_RESPONSE.encode())
     await writer.drain()
     writer.close()
 
+
 async def http_server():
     sock = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM, 0)
     sock.bind((-1, -1))
 
-    srv = await asyncio.start_server(handle_http_request, sock=sock, start_serving=False)
+    srv = await asyncio.start_server(
+        handle_http_request, sock=sock, start_serving=False
+    )
     async with srv:
         print(srv)
         await srv.start_serving()
@@ -87,5 +92,5 @@ async def http_server():
         await srv.serve_forever()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(http_server())
