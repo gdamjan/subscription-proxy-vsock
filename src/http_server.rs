@@ -28,25 +28,37 @@ async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Resul
     async_h1::accept(addr, stream.clone(), |req| async move {
         let (addr, port) = match crate::SUBSCRIBERS.get().await {
             Some(t) => t,
-            None => return no_subscribers(),
+            None => return bad_gateway(),
         };
 
-        let mut vsock_stream = UnixStream::connect(addr).await?;
+        let mut vsock_stream = match UnixStream::connect(addr).await {
+            Ok(v) => v,
+            Err(_) => return bad_gateway(),
+        };
+
         let connect_cmd = format!("CONNECT {}\n", port);
-        print!("{}", connect_cmd);
-        vsock_stream.write_all(connect_cmd.as_bytes()).await?;
+        if vsock_stream
+            .write_all(connect_cmd.as_bytes())
+            .await
+            .is_err()
+        {
+            return bad_gateway();
+        }
 
         // poor mans take_while
         let mut connect_response = Vec::<u8>::new();
         while {
             let mut single_byte = vec![0; 1];
-            vsock_stream.read_exact(&mut single_byte).await?;
+            if vsock_stream.read_exact(&mut single_byte).await.is_err() {
+                return bad_gateway();
+            }
             connect_response.push(single_byte[0]);
             single_byte != [b'\n']
         } {}
 
-        // FIXME: make sure it's OK
-        print!("{}", String::from_utf8_lossy(&connect_response));
+        if !connect_response.starts_with(b"OK ") {
+            return bad_gateway();
+        }
 
         // FIXME: double headers in request and response
         let res = async_h1::client::connect(vsock_stream, req).await?;
@@ -56,7 +68,8 @@ async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Resul
     Ok(())
 }
 
-fn no_subscribers() -> http_types::Result<Response> {
+fn bad_gateway() -> http_types::Result<Response> {
+    // Err(http_types::Error::from_str(StatusCode::BadGateway, "Bad Gateway")
     let mut res = Response::new(StatusCode::BadGateway);
     res.insert_header("Content-Type", "text/plain")?;
     res.set_body("Bad Gateway");
