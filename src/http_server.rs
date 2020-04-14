@@ -26,7 +26,7 @@ pub async fn http_listener(addr: &str, port: u16) -> std::io::Result<()> {
 
 async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Result<()> {
     println!("Got request from {}", stream.peer_addr()?);
-    async_h1::accept(addr, stream.clone(), |req| async move {
+    async_h1::accept_and_stream(addr, stream.clone(), |req| async move {
         let (addr, port) = match crate::SUBSCRIBERS.get().await {
             Some(t) => t,
             None => return bad_gateway(),
@@ -65,13 +65,8 @@ async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Resul
         let mut req = async_h1::client::Encoder::encode(req).await?;
         io::copy(&mut req, &vsock_stream).await?;
 
-        // FIXME: how to avoid this? just return the stream as-is
-        // not to say that decode adds double headers :/
-        let res = async_h1::client::decode(vsock_stream).await?;
-        Ok(res)
-
         // Ideally this would be:
-        // Ok(vsock_stream)
+        Ok(vsock_stream)
     })
     .await?;
     Ok(())
