@@ -1,3 +1,4 @@
+use async_std::io;
 use async_std::net::{TcpListener, TcpStream};
 use async_std::os::unix::net::UnixStream;
 use async_std::prelude::*;
@@ -60,9 +61,17 @@ async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Resul
             return bad_gateway();
         }
 
-        // FIXME: double headers in request and response
-        let res = async_h1::client::connect(vsock_stream, req).await?;
+        // send request to subscriber! FIXME: does it stream the request body?
+        let mut req = async_h1::client::Encoder::encode(req).await?;
+        io::copy(&mut req, &vsock_stream).await?;
+
+        // FIXME: how to avoid this? just return the stream as-is
+        // not to say that decode adds double headers :/
+        let res = async_h1::client::decode(vsock_stream).await?;
         Ok(res)
+
+        // Ideally this would be:
+        // Ok(vsock_stream)
     })
     .await?;
     Ok(())
