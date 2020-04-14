@@ -29,12 +29,12 @@ async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Resul
     async_h1::accept_and_stream(addr, stream.clone(), |req| async move {
         let (addr, port) = match crate::SUBSCRIBERS.get().await {
             Some(t) => t,
-            None => return bad_gateway(),
+            None => return Err(http_types::Error::from_str(StatusCode::BadGateway, "Bad Gateway")),
         };
 
         let mut vsock_stream = match UnixStream::connect(addr).await {
             Ok(v) => v,
-            Err(_) => return bad_gateway(),
+            Err(_) => return Err(http_types::Error::from_str(StatusCode::BadGateway, "Bad Gateway")),
         };
 
         let connect_cmd = format!("CONNECT {}\n", port);
@@ -43,7 +43,7 @@ async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Resul
             .await
             .is_err()
         {
-            return bad_gateway();
+            return Err(http_types::Error::from_str(StatusCode::BadGateway, "Bad Gateway"));
         }
 
         // poor mans take_while
@@ -51,14 +51,14 @@ async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Resul
         while {
             let mut single_byte = vec![0; 1];
             if vsock_stream.read_exact(&mut single_byte).await.is_err() {
-                return bad_gateway();
+                return Err(http_types::Error::from_str(StatusCode::BadGateway, "Bad Gateway"));
             }
             connect_response.push(single_byte[0]);
             single_byte != [b'\n']
         } {}
 
         if !connect_response.starts_with(b"OK ") {
-            return bad_gateway();
+            return Err(http_types::Error::from_str(StatusCode::BadGateway, "Bad Gateway"));
         }
 
         // send request to subscriber! FIXME: does it stream the request body?
@@ -73,7 +73,6 @@ async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Resul
 }
 
 fn bad_gateway() -> http_types::Result<Response> {
-    // Err(http_types::Error::from_str(StatusCode::BadGateway, "Bad Gateway")
     let mut res = Response::new(StatusCode::BadGateway);
     res.insert_header("Content-Type", "text/plain")?;
     res.set_body("Bad Gateway");
