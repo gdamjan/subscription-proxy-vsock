@@ -52,6 +52,8 @@ async def register_with_proxy(server):
         await writer.drain()
         await keepalive(reader, writer)
     finally:
+        writer.close()
+        await writer.wait_closed()
         server.close()
 
 async def keepalive(reader, writer):
@@ -62,8 +64,6 @@ async def keepalive(reader, writer):
             await writer.drain()
         if data == b'':
             break
-    writer.close()
-    await writer.wait_closed()
 
 
 async def handle_http_request(reader, writer):
@@ -82,6 +82,7 @@ async def http_server():
     srv = await asyncio.start_server(handle_http_request, sock=sock, start_serving=False)
     async with srv:
         print(srv)
+        await srv.start_serving()
         asyncio.create_task(register_with_proxy(srv))
         await srv.serve_forever()
 
