@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate lazy_static;
+
 use async_std::task;
 
 const HTTP_PORT: u16 = 8888;
@@ -6,6 +9,7 @@ const VSOCK_PORT: u32 = 12345;
 const VSOCK_ADDR: &str = "/tmp/cid10.sock";
 
 mod http_server;
+mod subscribers;
 mod subscription_server;
 
 #[async_std::main]
@@ -20,17 +24,7 @@ async fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-
-/*
-    some global structure to keep subscriptions
-
-
-use async_std::sync::Mutex;
-
-#[macro_use]
-extern crate lazy_static;
-
+// Global singleton
 lazy_static! {
-    static ref SUBSCRIBERS: Mutex<Vec<u32>> = Mutex::new(Vec::<u32>::new());
+    pub static ref SUBSCRIBERS: subscribers::Subscribers = subscribers::Subscribers::new();
 }
-*/

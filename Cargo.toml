@@ -8,10 +8,8 @@ edition = "2018"
 
 [dependencies]
 async-h1 = "1.1.0"
+async-std = { version = "1.5", features = ["attributes"] }
 http-types = "1.1.1"
 libc = "0.2"
 lazy_static = "1.4.0"
-
-[dependencies.async-std]
-version = "1.5.0"
-features = ["attributes"]
+rand = "0.7"
