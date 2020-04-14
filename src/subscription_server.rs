@@ -43,13 +43,15 @@ async fn handle_subscription(addr: &str, mut stream: UnixStream) -> io::Result<(
     } else {
         return Err(io::Error::new(io::ErrorKind::Other, "Bad REGISTER request"));
     };
-    println!("Registered: {}:{}", addr, port);
 
     crate::SUBSCRIBERS.register(addr.to_string(), port).await;
+    println!("Registered: {}:{}", addr, port);
 
     loop {
         let mut response: Vec<u8> = vec![0; 5];
-        stream.write_all(b"ping\n").await?;
+        if stream.write_all(b"ping\n").await.is_err() {
+            break;
+        };
         if future::timeout(Duration::from_secs(5), stream.read_exact(&mut response))
             .await
             .is_err()
@@ -62,7 +64,8 @@ async fn handle_subscription(addr: &str, mut stream: UnixStream) -> io::Result<(
         task::sleep(Duration::from_secs(5)).await;
     }
 
+    crate::SUBSCRIBERS.deregister(addr.to_string(), port).await;
     println!("De-registered: {}:{}", addr, port);
-    // FIXME: crate::SUBSCRIBERS.deregister(addr.to_string(), port).await;
+
     Ok(())
 }

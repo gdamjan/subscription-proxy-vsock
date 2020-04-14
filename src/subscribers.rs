@@ -29,6 +29,10 @@ impl Subscribers {
         vec.push(Subscriber { addr, port });
     }
 
-    // FIXME:
-    // pub async fn deregister(&self, addr: String, port: u32) {}
+    pub async fn deregister(&self, addr: String, port: u32) {
+        let vec = &mut *self.0.lock().await;
+        if let Some(i) = vec.iter().position(|v| v.addr == addr && v.port == port) {
+            vec.remove(i);
+        };
+    }
 }
