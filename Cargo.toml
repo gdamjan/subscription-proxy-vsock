@@ -13,3 +13,7 @@ http-types = "1.1.1"
 libc = "0.2"
 lazy_static = "1.4.0"
 rand = "0.7"
+
+[patch.crates-io]
+http-types = { path = '../../src/http-types' }
+async-h1 = { path = '../../src/async-h1' }
