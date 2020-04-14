@@ -25,8 +25,8 @@ async fn handle_subscription(addr: &str, mut stream: UnixStream) -> io::Result<(
     // read lines of the form "REGISTER <port>\n"
     const REGISTER: &[u8] = b"REGISTER ";
 
-    let mut register_request = Vec::<u8>::new();
     // poor mans take_while
+    let mut register_request = Vec::<u8>::new();
     while {
         let mut single_byte = vec![0; 1];
         stream.read_exact(&mut single_byte).await?;
@@ -45,10 +45,7 @@ async fn handle_subscription(addr: &str, mut stream: UnixStream) -> io::Result<(
     };
     println!("Registered: {}:{}", addr, port);
 
-    /* FIXME
-        add (addr, port) to a "subscribers" structure
-        crate::SUBSCRIBERS.lock().await.push_back(…);
-    */
+    crate::SUBSCRIBERS.register(addr.to_string(), port).await;
 
     loop {
         let mut response: Vec<u8> = vec![0; 5];
@@ -64,8 +61,8 @@ async fn handle_subscription(addr: &str, mut stream: UnixStream) -> io::Result<(
         }
         task::sleep(Duration::from_secs(5)).await;
     }
-    // FIXME: deregister
-    println!("De-registered: {}:{}", addr, port);
 
+    println!("De-registered: {}:{}", addr, port);
+    // FIXME: crate::SUBSCRIBERS.deregister(addr.to_string(), port).await;
     Ok(())
 }

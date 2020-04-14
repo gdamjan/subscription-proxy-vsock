@@ -26,26 +26,17 @@ pub async fn http_listener(addr: &str, port: u16) -> std::io::Result<()> {
 async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Result<()> {
     println!("Got request from {}", stream.peer_addr()?);
     async_h1::accept(addr, stream.clone(), |req| async move {
-        /*
-            get subscriber,
-            round-robin … weighted?
-            if none, return 500
+        let (addr, port) = match crate::SUBSCRIBERS.get().await {
+            Some(t) => t,
+            None => return no_subscribers(),
+        };
 
-        let subscriber_port: Option<u32> = crate::SUBSCRIBERS.lock().await.pop_front();
-        */
-        // FIXME:
-        let subscriber_addr = crate::VSOCK_ADDR;
-        let subscriber_port: u32 = 54321;
-        if subscriber_addr == "" || subscriber_port <= 0 {
-            return no_subscribers();
-        }
-
-        let mut vsock_stream = UnixStream::connect(subscriber_addr).await?;
-        let connect_cmd = format!("CONNECT {}\n", subscriber_port);
+        let mut vsock_stream = UnixStream::connect(addr).await?;
+        let connect_cmd = format!("CONNECT {}\n", port);
         print!("{}", connect_cmd);
         vsock_stream.write_all(connect_cmd.as_bytes()).await?;
 
-        // poor mans skip_while
+        // poor mans take_while
         let mut connect_response = Vec::<u8>::new();
         while {
             let mut single_byte = vec![0; 1];
@@ -53,8 +44,11 @@ async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Resul
             connect_response.push(single_byte[0]);
             single_byte != [b'\n']
         } {}
+
+        // FIXME: make sure it's OK
         print!("{}", String::from_utf8_lossy(&connect_response));
 
+        // FIXME: double headers in request and response
         let res = async_h1::client::connect(vsock_stream, req).await?;
         Ok(res)
     })

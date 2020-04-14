@@ -35,7 +35,6 @@ content-length: 3\r
 \r
 ok
 '''
-FIXED_PORT_UNTIL_REGISTRATION_WORKS = 54321
 
 PROXY_WELL_KNOWN_ADDR = 2      ## the host in VSOCK addressing
 PROXY_WELL_KNOWN_PORT = 12345
@@ -78,8 +77,7 @@ async def handle_http_request(reader, writer):
 
 async def http_server():
     sock = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM, 0)
-    #sock.bind((-1, -1))
-    sock.bind((-1, FIXED_PORT_UNTIL_REGISTRATION_WORKS))
+    sock.bind((-1, -1))
 
     srv = await asyncio.start_server(handle_http_request, sock=sock, start_serving=False)
     async with srv:
