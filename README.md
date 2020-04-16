@@ -13,6 +13,9 @@ The virtual machine will run with cloud-hypervisor started with `--vsock cid=10,
 
 ## Roadmap
 
+A rough roadmap is 
+https://github.com/gdamjan/subscription-proxy-vsock/milestones?with_issues=no
+
 0.1)
   listeners for http and vsock (or its emulation)
 
@@ -43,7 +46,8 @@ The virtual machine will run with cloud-hypervisor started with `--vsock cid=10,
 ## Links:
 
 http server:
-- https://docs.rs/async-h1/1.1.0/async_h1/
+- https://docs.rs/httparse/
+- https://docs.rs/async-h1/
 
 Request/Response serialization candidates:
 - https://github.com/sbdchd/tnetstring/
