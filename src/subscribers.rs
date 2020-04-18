@@ -2,9 +2,16 @@ use async_std::sync::{Arc, Mutex};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
-struct Subscriber {
+pub struct Subscriber {
     addr: String,
     port: u32,
+}
+
+impl Drop for Subscriber {
+    fn drop(&mut self) {
+        // deregister is async, how do I run it??? task::spawn?
+        crate::SUBSCRIBERS.deregister(self.addr.to_string(), self.port);
+    }
 }
 
 pub struct Subscribers(Arc<Mutex<Vec<Subscriber>>>);
@@ -21,12 +28,13 @@ impl Subscribers {
             .map(|s| (s.addr.clone(), s.port))
     }
 
-    pub async fn register(&self, addr: String, port: u32) {
+    pub async fn register(&self, addr: String, port: u32) -> Subscriber {
         // let mutex = &self.0;
         // let mut guard = mutex.lock().await;
         // let vec = &mut *guard;
         let vec = &mut *self.0.lock().await;
-        vec.push(Subscriber { addr, port });
+        vec.push(Subscriber { addr: addr.clone(), port });
+        Subscriber { addr, port }
     }
 
     pub async fn deregister(&self, addr: String, port: u32) {
