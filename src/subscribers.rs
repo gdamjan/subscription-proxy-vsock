@@ -10,7 +10,7 @@ pub struct Subscriber {
 impl Drop for Subscriber {
     fn drop(&mut self) {
         // deregister is async, how do I run it??? task::spawn?
-        crate::SUBSCRIBERS.deregister(self.addr.to_string(), self.port);
+        async_std::task::spawn(crate::SUBSCRIBERS.deregister(self.addr.to_string(), self.port));
     }
 }
 
@@ -34,6 +34,7 @@ impl Subscribers {
         // let vec = &mut *guard;
         let vec = &mut *self.0.lock().await;
         vec.push(Subscriber { addr: addr.clone(), port });
+        println!("Registered: {}:{}", addr, port);
         Subscriber { addr, port }
     }
 
@@ -42,5 +43,6 @@ impl Subscribers {
         if let Some(i) = vec.iter().position(|v| v.addr == addr && v.port == port) {
             vec.remove(i);
         };
+        println!("De-registered: {}:{}", addr, port);
     }
 }

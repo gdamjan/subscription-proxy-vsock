@@ -44,8 +44,7 @@ async fn handle_subscription(addr: &str, mut stream: UnixStream) -> io::Result<(
         return Err(io::Error::new(io::ErrorKind::Other, "Bad REGISTER request"));
     };
 
-    crate::SUBSCRIBERS.register(addr.to_string(), port).await;
-    println!("Registered: {}:{}", addr, port);
+    let _sub = crate::SUBSCRIBERS.register(addr.to_string(), port).await;
 
     loop {
         let mut response: Vec<u8> = vec![0; 5];
@@ -64,8 +63,6 @@ async fn handle_subscription(addr: &str, mut stream: UnixStream) -> io::Result<(
         task::sleep(Duration::from_secs(5)).await;
     }
 
-    crate::SUBSCRIBERS.deregister(addr.to_string(), port).await;
-    println!("De-registered: {}:{}", addr, port);
 
     Ok(())
 }
