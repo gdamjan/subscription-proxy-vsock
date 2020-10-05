@@ -13,9 +13,8 @@ pub async fn http_listener(addr: &str, port: u16) -> std::io::Result<()> {
     let mut incoming = listener.incoming();
     while let Some(stream) = incoming.next().await {
         let stream = stream?;
-        let addr = addr.clone();
         task::spawn(async move {
-            if let Err(err) = handle_http_request(&addr, stream).await {
+            if let Err(err) = handle_http_request(stream).await {
                 eprintln!("{}", err);
             }
         });
@@ -23,9 +22,9 @@ pub async fn http_listener(addr: &str, port: u16) -> std::io::Result<()> {
     Ok(())
 }
 
-async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Result<()> {
+async fn handle_http_request(stream: TcpStream) -> http_types::Result<()> {
     println!("Got request from {}", stream.peer_addr()?);
-    async_h1::accept(addr, stream.clone(), |req| async move {
+    async_h1::accept(stream.clone(), |req| async move {
         let (addr, port) = match crate::SUBSCRIBERS.get().await {
             Some(t) => t,
             None => return bad_gateway(),
@@ -61,7 +60,11 @@ async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Resul
         }
 
         // FIXME: double headers in request and response
+        let mut req = http_types::Request::from(req);
+        req.url_mut().set_host(None).ok();
+        eprintln!("{:?}", req);
         let res = async_h1::client::connect(vsock_stream, req).await?;
+        eprintln!("{:?}", res);
         Ok(res)
     })
     .await?;
@@ -71,7 +74,7 @@ async fn handle_http_request(addr: &str, stream: TcpStream) -> http_types::Resul
 fn bad_gateway() -> http_types::Result<Response> {
     // Err(http_types::Error::from_str(StatusCode::BadGateway, "Bad Gateway")
     let mut res = Response::new(StatusCode::BadGateway);
-    res.insert_header("Content-Type", "text/plain")?;
+    res.insert_header("Content-Type", "text/plain");
     res.set_body("Bad Gateway");
     Ok(res)
 }
