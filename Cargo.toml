@@ -1,15 +1,13 @@
 [package]
 name = "subscription-proxy-vsock"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Дамјан Георгиевски <gdamjan@gmail.com>"]
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+edition = "2021"
 
 [dependencies]
-async-h1 = "2.1.0"
-async-std = { version = "1.7", features = ["attributes"] }
-http-types = "2.5.0"
+async-h1 = "2.3.2"
+async-std = { version = "1.10.0", features = ["attributes"] }
+http-types = "2.12.0"
 libc = "0.2"
 lazy_static = "1.4.0"
-rand = "0.7"
+rand = "0.8.4"
